@@ -5,6 +5,7 @@ module.exports = {
   rules: {
     "no-restricted-globals": "off",
     "quotes": ["error", "double"],
-    "no-undefined": "error"
+    "no-undefined": "error",
+    "curly": "error",
   }
 }

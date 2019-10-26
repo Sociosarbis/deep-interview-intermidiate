@@ -8,8 +8,8 @@ const {
 } = require("./utils");
 const {
   url,
-  COMMON_CONFIG_FIELDS,
-  ACTION_SPECIFIC_FIELDS,
+  BATCH_REQUIRED_LIST,
+  SINGLE_REQUIRED_LIST,
 } = require("./config");
 
 require("dotenv").config();
@@ -34,11 +34,16 @@ function combineUserDefaultValue(config) {
 }
 
 function collectErrorMsgs(requiredFields, config) {
-  return requiredFields.reduce((acc, fieldName) => {
-    const configName = firstCharLower(fieldName);
-    if (!isDef(config[configName])) acc.push(`${configName} required`);
-    return acc;
-  }, []);
+  return new Promise((res, rej) => {
+    const errorMsgs = requiredFields.reduce((acc, fieldName) => {
+      const configName = firstCharLower(fieldName);
+      if (!isDef(config[configName])) {
+        acc.push(`${configName} required`);
+      }
+      return acc;
+    }, []);
+    return errorMsgs.length ? rej(new Error(errorMsgs.join(",\n"))) : res(config);
+  });
 }
 
 
@@ -74,8 +79,7 @@ function createSignature(signStr, accessKeySecret) {
 }
 
 function sendEmail(config) {
-  const configParams = { ...config };
-  configParams.action = `${firstCharUpper(configParams.action)}SendMail`;
+  const configParams = { ...config, action: `${firstCharUpper(config.action)}SendMail` };
   // merges with unconfigurable fields
   const params = {
     ...getFixedParams(),
@@ -86,7 +90,7 @@ function sendEmail(config) {
 
   const signStr = `POST&%2F&${paramStr}`;
 
-  const signature = createSignature(signStr, config.accessKeySecret);
+  const signature = createSignature(signStr, configParams.accessKeySecret);
 
   const reqBody = `Signature=${signature}&${paramStr}`;
 
@@ -102,25 +106,17 @@ function sendEmail(config) {
 
 function sendSingleMail(_config = {}) {
   const config = combineUserDefaultValue(_config);
-  config.action = "batch";
-  const fields = COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS.single);
-  const errorMsgs = collectErrorMsgs(fields, config);
-  if (errorMsgs.length) {
-    return Promise.reject(new Error(errorMsgs.join(",\n")));
-  }
-  return sendEmail(config);
+  config.action = "single";
+  return collectErrorMsgs(SINGLE_REQUIRED_LIST, config)
+    .then((validatedConfig) => sendEmail(validatedConfig));
 }
 
 function sendBatchMail(_config = {}) {
   const config = combineUserDefaultValue(_config);
   config.action = "batch";
-  const fields = COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS.batch);
   // validates and retrieves valid value
-  const errorMsgs = collectErrorMsgs(fields, config);
-  if (errorMsgs.length) {
-    return Promise.reject(new Error(errorMsgs.join(",\n")));
-  }
-  return sendEmail(config);
+  return collectErrorMsgs(BATCH_REQUIRED_LIST, config)
+    .then((validatedConfig) => sendEmail(validatedConfig));
 }
 
 module.exports = {
