@@ -1,16 +1,15 @@
-const { isDef, isStr } = require('./utils')
+const { isDef, isStr, firstCharUpper } = require('./utils')
 
 const COMMON_CONFIG_FIELDS = [
   'AccessKeyId',
   'Action',
-  'Format',
   'AccountName',
   'AddressType'
 ]
 
 const ACTION_SPECIFIC_FIELDS = {
-  single: ['ReplyToAddress', 'ToAddress'],
-  batch: ['ReceiversName', 'TemplateName']
+  single: ['ReplyToAddress', 'ToAddress', 'fromAlias', 'subject', 'htmlBody', 'textBody'],
+  batch: ['ReceiversName', 'TemplateName', 'tagName']
 }
 
 const ALLOW_ACTIONS = [
@@ -28,7 +27,8 @@ module.exports = {
     accountName: 'accountName required',
     action: 'error action',
     templateName: 'templateName required',
-    receiversName: 'receiversName required'
+    receiversName: 'receiversName required',
+    subject: 'subject required'
   },
   // pass config in
   fields(config) {
@@ -48,13 +48,17 @@ module.exports = {
       validate: isStr
     },
     action: {
-      validate: (value) => ALLOW_ACTIONS.indexOf(value) !== -1
+      validate: (value) => ALLOW_ACTIONS.indexOf(value) !== -1,
+      mapValue: (value) => `${firstCharUpper(value)}SendMail`
     },
     templateName: {
       validate: isStr
     },
     addressType: {
       mapValue: (value) => ALLOW_ADDRESS_TYPES.indexOf(parseFloat(value)) === -1 ? 0 : value
+    },
+    subject: {
+      validate: isDef
     }
   }
 }

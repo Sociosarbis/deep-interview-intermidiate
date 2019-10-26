@@ -18,9 +18,14 @@ function firstCharLower(str) {
   return str.replace(/^./, (m) => m.toLowerCase())
 }
 
+function firstCharUpper(str) {
+  return str.replace(/^./, (m) => m.toUpperCase())
+}
+
 module.exports = {
   isDef,
   isNum,
   isStr,
-  firstCharLower
+  firstCharLower,
+  firstCharUpper
 }

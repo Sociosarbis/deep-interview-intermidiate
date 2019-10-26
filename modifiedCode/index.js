@@ -1,7 +1,15 @@
 const crypto = require('crypto')
-const { firstCharLower } = require('./utils')
+const { firstCharLower, isDef } = require('./utils')
 const { url, errorMsgTypes, fields, fieldDefinitions } = require('./config')
 const axios = require('axios').default
+
+/**
+ * @param {object} config
+ * 共用参数 accessKeyId, action, accountName, addressType, accessKeySecret
+ * single特有参数 replyToAddress, toAddress, fromAlias, subject, htmlBody, textBody
+ * batch特有参数 receiversName, templateName, tagName
+ * @param {function=} cb 兼容旧调用方式， 不填则直接返回axios的request promise
+ */
 
 module.exports = function(config, cb) {
   const nonce = Date.now()
@@ -25,7 +33,7 @@ module.exports = function(config, cb) {
         if (mapValue) {
           configValue = mapValue(configValue)
         }
-        acc[fieldName] = configValue
+        if (isDef(configValue)) acc[fieldName] = configValue
       } else if (errorMsgTypes[configName]) {
         errorMsgs.push(errorMsgTypes[configName])
       }
@@ -36,7 +44,9 @@ module.exports = function(config, cb) {
   }, {})
   // if has errors, just callback error and break
   if (errorMsgs.length) {
-    return cb(errorMsgs.join(','))
+    const joinedErrorMsg = errorMsgs.join(',\n')
+    const errorObj = new Error(joinedErrorMsg)
+    return cb ? cb(errorObj) : Promise.reject(errorObj)
   }
   // merges with unconfigurable fields
   const params = {
@@ -57,10 +67,12 @@ module.exports = function(config, cb) {
     .sort()
     .join('&')}`
   const sign = crypto
-    .createHmac('sha1', config.accessKeySecret + '&')
+    .createHmac('sha1', `${config.accessKeySecret}&`)
     .update(signStr)
     .digest('base64')
+
   const signature = encodeURIComponent(sign)
+
   const reqBody = Object.keys(params)
     .reduce(
       (acc, field) => {
@@ -70,17 +82,23 @@ module.exports = function(config, cb) {
       [`Signature=${signature}`]
     )
     .join('&')
-  return axios(
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      uri: url,
-      body: reqBody,
-      method: 'POST'
-    }).then((res) => {
-      cb(null, res.data)
-    }).catch((err) => {
-      cb(err, )
-    })
+
+  const request = axios({
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    uri: url,
+    body: reqBody,
+    method: 'POST'
+  })
+
+  return cb
+    ? request
+        .then(res => {
+          cb(null, res.data)
+        })
+        .catch(err => {
+          cb(err)
+        })
+    : request
 }

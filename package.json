@@ -1,0 +1,33 @@
+{
+  "name": "ali-send-email",
+  "version": "1.0.0",
+  "description": "client interface for sending email with ali",
+  "main": "modifiedCode/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sociosarbis/deep-interview-intermidiate.git"
+  },
+  "keywords": [
+    "ali",
+    "email",
+    "client"
+  ],
+  "author": "sociosarbis",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Sociosarbis/deep-interview-intermidiate/issues"
+  },
+  "homepage": "https://github.com/Sociosarbis/deep-interview-intermidiate#readme",
+  "dependencies": {
+    "dotenv": "^8.2.0"
+  },
+  "devDependencies": {
+    "jest": "^24.9.0"
+  }
+}
