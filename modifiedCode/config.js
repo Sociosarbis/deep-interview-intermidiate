@@ -1,23 +1,23 @@
-const { isDef, isStr, firstCharUpper } = require('./utils')
+const { isDef, isStr, firstCharUpper } = require('./utils');
 
 const COMMON_CONFIG_FIELDS = [
   'AccessKeyId',
   'Action',
   'AccountName',
-  'AddressType'
-]
+  'AddressType',
+];
 
 const ACTION_SPECIFIC_FIELDS = {
   single: ['ReplyToAddress', 'ToAddress', 'fromAlias', 'subject', 'htmlBody', 'textBody'],
-  batch: ['ReceiversName', 'TemplateName', 'tagName']
-}
+  batch: ['ReceiversName', 'TemplateName', 'tagName'],
+};
 
 const ALLOW_ACTIONS = [
   'single',
-  'batch'
-]
+  'batch',
+];
 
-const ALLOW_ADDRESS_TYPES = [0, 1]
+const ALLOW_ADDRESS_TYPES = [0, 1];
 
 module.exports = {
   url: 'https://dm.aliyuncs.com/',
@@ -28,37 +28,34 @@ module.exports = {
     action: 'error action',
     templateName: 'templateName required',
     receiversName: 'receiversName required',
-    subject: 'subject required'
+    subject: 'subject required',
   },
   // pass config in
   fields(config) {
-    return COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS[config.action])
+    return COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS[config.action]);
   },
   fieldDefinitions: {
     accountName: {
       validate: isStr,
     },
     accessKeyID: {
-      validate: isStr
+      validate: isStr,
     },
     accessKeySecret: {
-      validate: isDef
-    },
-    accountName: {
-      validate: isStr
+      validate: isDef,
     },
     action: {
       validate: (value) => ALLOW_ACTIONS.indexOf(value) !== -1,
-      mapValue: (value) => `${firstCharUpper(value)}SendMail`
+      mapValue: (value) => `${firstCharUpper(value)}SendMail`,
     },
     templateName: {
-      validate: isStr
+      validate: isStr,
     },
     addressType: {
-      mapValue: (value) => ALLOW_ADDRESS_TYPES.indexOf(parseFloat(value)) === -1 ? 0 : value
+      mapValue: (value) => (ALLOW_ADDRESS_TYPES.indexOf(parseFloat(value)) === -1 ? 0 : value),
     },
     subject: {
-      validate: isDef
-    }
-  }
-}
+      validate: isDef,
+    },
+  },
+};
