@@ -22,7 +22,7 @@ describe("send email with correct config", () => {
     const errorHandler = jest.fn();
     return sendSingleMail(singleConfig)
       .then((data) => expect(data).tohasProperty("EnvId"))
-      .reject(errorHandler)
+      .catch(errorHandler)
       .then(() => expect(errorHandler).not.toHaveBeenCalled());
   });
 
@@ -30,7 +30,7 @@ describe("send email with correct config", () => {
     const errorHandler = jest.fn();
     return sendBatchMail(batchConfig)
       .then((data) => expect(data).tohasProperty("EnvId"))
-      .reject(errorHandler)
+      .catch(errorHandler)
       .then(() => expect(errorHandler).not.toHaveBeenCalled());
   });
 });
@@ -38,7 +38,7 @@ describe("send email with correct config", () => {
 describe("send emial with wrong config", () => {
   test("config can not pass client valiation", () => {
     const successHandler = jest.fn();
-    return sendSingleEmail({ ...singleConfig, subject: null })
+    return sendSingleMail({ ...singleConfig, subject: null })
       .then(successHandler)
       .catch((err) => expect(err).not.tohasProperty("request"))
       .then(() => expect(successHandler).not.toHaveBeenCalled());
@@ -46,7 +46,7 @@ describe("send emial with wrong config", () => {
 
   test("config can pass client validation", () => {
     const successHandler = jest.fn();
-    return sendSingleMail({ ...config, accessKeySecret: "wrong accessKeySecret" })
+    return sendSingleMail({ ...singleConfig, accessKeySecret: "wrong accessKeySecret" })
       .then(successHandler)
       .catch((err) => expect(err).tohasProperty("request"))
       .then(() => expect(successHandler).not.toHaveBeenCalled());

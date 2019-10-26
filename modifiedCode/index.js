@@ -66,7 +66,7 @@ function createParamStr(params) {
     .reduce((acc, field) => {
       acc.push(`${encodeURIComponent(field)}=${encodeURIComponent(params[field])}`);
       return acc;
-    })
+    }, [])
     .sort()
     .join("&")}`;
 }
