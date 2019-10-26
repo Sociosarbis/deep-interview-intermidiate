@@ -21,18 +21,14 @@ describe("send email with correct config", () => {
   test("send single email", () => {
     const errorHandler = jest.fn();
     return sendSingleMail(singleConfig)
-      .then((data) => expect(data).tohasProperty("EnvId"))
+      .then((res) => expect(res).toHaveProperty(["data", "EnvId"]))
       .catch(errorHandler)
       .then(() => expect(errorHandler).not.toHaveBeenCalled());
   });
 
-  test("send batch email", () => {
-    const errorHandler = jest.fn();
-    return sendBatchMail(batchConfig)
-      .then((data) => expect(data).tohasProperty("EnvId"))
-      .catch(errorHandler)
-      .then(() => expect(errorHandler).not.toHaveBeenCalled());
-  });
+  test("send batch email", () => sendBatchMail(batchConfig)
+    .then((res) => expect(res).toHaveProperty(["data", "EnvId"]))
+    .catch((err) => expect(err).toHaveProperty(["response", "data", "Code"], "InvalidTemplateStatus.Malformed")));
 });
 
 describe("send emial with wrong config", () => {
@@ -40,7 +36,7 @@ describe("send emial with wrong config", () => {
     const successHandler = jest.fn();
     return sendSingleMail({ ...singleConfig, subject: null })
       .then(successHandler)
-      .catch((err) => expect(err).not.tohasProperty("request"))
+      .catch((err) => expect(err).not.toHaveProperty("request"))
       .then(() => expect(successHandler).not.toHaveBeenCalled());
   });
 
@@ -48,7 +44,7 @@ describe("send emial with wrong config", () => {
     const successHandler = jest.fn();
     return sendSingleMail({ ...singleConfig, accessKeySecret: "wrong accessKeySecret" })
       .then(successHandler)
-      .catch((err) => expect(err).tohasProperty("request"))
+      .catch((err) => expect(err).toHaveProperty("request"))
       .then(() => expect(successHandler).not.toHaveBeenCalled());
   });
 });

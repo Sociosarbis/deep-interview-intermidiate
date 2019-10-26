@@ -16,7 +16,8 @@ require("dotenv").config();
 
 /**
  * @param {object} config
- * 共用参数 accessKeyId, action, accountName, addressType, accessKeySecret
+ * 其中config.accessKeySecret作加密用
+ * 共用参数 accessKeyId, action, accountName, addressType
  * single特有参数 replyToAddress, toAddress, fromAlias, subject, htmlBody, textBody
  * batch特有参数 receiversName, templateName, tagName
  */
@@ -52,6 +53,7 @@ function getFixedParams() {
   const date = new Date();
   return {
     Format: "JSON",
+    RegionID: "cn-hangzhou",
     SignatureMethod: "HMAC-SHA1",
     SignatureNonce: nonce,
     SignatureVersion: "1.0",
@@ -64,7 +66,7 @@ function createParamStr(params) {
   return `${Object.keys(params)
     .filter((field) => isDef(params[field]))
     .reduce((acc, field) => {
-      acc.push(`${encodeURIComponent(field)}=${encodeURIComponent(params[field])}`);
+      acc.push(`${encodeURIComponent(firstCharUpper(field))}=${encodeURIComponent(params[field])}`);
       return acc;
     }, [])
     .sort()
@@ -78,19 +80,19 @@ function createSignature(signStr, accessKeySecret) {
     .digest("base64"));
 }
 
+
 function sendEmail(config) {
-  const configParams = { ...config, action: `${firstCharUpper(config.action)}SendMail` };
   // merges with unconfigurable fields
   const params = {
     ...getFixedParams(),
-    ...configParams,
+    ...config,
   };
 
   const paramStr = createParamStr(params);
 
-  const signStr = `POST&%2F&${paramStr}`;
+  const signStr = `POST&%2F&${encodeURIComponent(paramStr)}`;
 
-  const signature = createSignature(signStr, configParams.accessKeySecret);
+  const signature = createSignature(signStr, config.accessKeySecret);
 
   const reqBody = `Signature=${signature}&${paramStr}`;
 
@@ -98,7 +100,7 @@ function sendEmail(config) {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    uri: url,
+    url,
     data: reqBody,
     method: "POST",
   });
@@ -106,14 +108,14 @@ function sendEmail(config) {
 
 function sendSingleMail(_config = {}) {
   const config = combineUserDefaultValue(_config);
-  config.action = "single";
+  config.action = "SingleSendMail";
   return collectErrorMsgs(SINGLE_REQUIRED_LIST, config)
     .then((validatedConfig) => sendEmail(validatedConfig));
 }
 
 function sendBatchMail(_config = {}) {
   const config = combineUserDefaultValue(_config);
-  config.action = "batch";
+  config.action = "BatchSendMail";
   // validates and retrieves valid value
   return collectErrorMsgs(BATCH_REQUIRED_LIST, config)
     .then((validatedConfig) => sendEmail(validatedConfig));
