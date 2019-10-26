@@ -1,106 +1,129 @@
-const axios = require('axios').default;
-const crypto = require('crypto');
-const { firstCharLower, isDef } = require('./utils');
+const axios = require("axios").default;
+const crypto = require("crypto");
 const {
-  url, errorMsgTypes, fields, fieldDefinitions,
-} = require('./config');
+  firstCharLower,
+  isDef,
+  getValue,
+  firstCharUpper,
+} = require("./utils");
+const {
+  url,
+  COMMON_CONFIG_FIELDS,
+  ACTION_SPECIFIC_FIELDS,
+} = require("./config");
+
+require("dotenv").config();
 
 /**
  * @param {object} config
  * 共用参数 accessKeyId, action, accountName, addressType, accessKeySecret
  * single特有参数 replyToAddress, toAddress, fromAlias, subject, htmlBody, textBody
  * batch特有参数 receiversName, templateName, tagName
- * @param {function=} cb 兼容旧调用方式， 不填则直接返回axios的request promise
  */
+function combineUserDefaultValue(config) {
+  const {
+    accessKeyId, accessKeySecret, accountName,
+  } = process.env;
+  return {
+    ...config,
+    addressType: getValue(config.addressType, 0),
+    accessKeyId: getValue(config.accessKeyId, accessKeyId),
+    accessKeySecret: getValue(config.accessKeySecret, accessKeySecret),
+    accountName: getValue(config.accountName, accountName),
+  };
+}
 
-module.exports = function sendEmail(_config, cb) {
+function collectErrorMsgs(requiredFields, config) {
+  return requiredFields.reduce((acc, fieldName) => {
+    const configName = firstCharLower(fieldName);
+    if (!isDef(config[configName])) acc.push(`${configName} required`);
+    return acc;
+  }, []);
+}
+
+
+function getFixedParams() {
   const nonce = Date.now();
   const date = new Date();
-  const errorMsgs = [];
-  const config = _config || {};
-  // first determines which fields need to config
-  const sFields = fields(config);
-  // validates and retrieves valid value
-  const configParams = sFields.reduce((acc, fieldName) => {
-    const configName = firstCharLower(fieldName);
-    let configValue = config[configName];
-    const checkConfig = fieldDefinitions[configName];
-    if (checkConfig) {
-      const { validate, mapValue } = checkConfig;
-      let isValid = true;
-      if (validate) {
-        isValid = validate(configValue);
-      }
-      if (isValid) {
-        if (mapValue) {
-          configValue = mapValue(configValue);
-        }
-        if (isDef(configValue)) acc[fieldName] = configValue;
-      } else if (errorMsgTypes[configName]) {
-        errorMsgs.push(errorMsgTypes[configName]);
-      }
-    } else {
-      acc[fieldName] = config[fieldName];
-    }
-    return acc;
-  }, {});
-  // if has errors, just callback error and break
-  if (errorMsgs.length) {
-    const joinedErrorMsg = errorMsgs.join(',\n');
-    const errorObj = new Error(joinedErrorMsg);
-    return cb ? cb(errorObj) : Promise.reject(errorObj);
-  }
-  // merges with unconfigurable fields
-  const params = {
-    Format: 'JSON',
-    SignatureMethod: 'HMAC-SHA1',
+  return {
+    Format: "JSON",
+    SignatureMethod: "HMAC-SHA1",
     SignatureNonce: nonce,
-    SignatureVersion: '1.0',
+    SignatureVersion: "1.0",
     Timestamp: date.toISOString(),
-    Version: '2015-11-23',
-    ...configParams,
+    Version: "2015-11-23",
   };
+}
 
-  const signStr = `POST&%2F&${Object.keys(params)
+function createParamStr(params) {
+  return `${Object.keys(params)
+    .filter((field) => isDef(params[field]))
     .reduce((acc, field) => {
       acc.push(`${encodeURIComponent(field)}=${encodeURIComponent(params[field])}`);
       return acc;
     })
     .sort()
-    .join('&')}`;
-  const sign = crypto
-    .createHmac('sha1', `${config.accessKeySecret}&`)
+    .join("&")}`;
+}
+
+function createSignature(signStr, accessKeySecret) {
+  return encodeURIComponent(crypto
+    .createHmac("sha1", `${accessKeySecret}&`)
     .update(signStr)
-    .digest('base64');
+    .digest("base64"));
+}
 
-  const signature = encodeURIComponent(sign);
+function sendEmail(config) {
+  const configParams = { ...config };
+  configParams.action = `${firstCharUpper(configParams.action)}SendMail`;
+  // merges with unconfigurable fields
+  const params = {
+    ...getFixedParams(),
+    ...configParams,
+  };
 
-  const reqBody = Object.keys(params)
-    .reduce(
-      (acc, field) => {
-        acc.push(`${field}=${params[field]}`);
-        return acc;
-      },
-      [`Signature=${signature}`],
-    )
-    .join('&');
+  const paramStr = createParamStr(params);
 
-  const request = axios({
+  const signStr = `POST&%2F&${paramStr}`;
+
+  const signature = createSignature(signStr, config.accessKeySecret);
+
+  const reqBody = `Signature=${signature}&${paramStr}`;
+
+  return axios({
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     uri: url,
-    body: reqBody,
-    method: 'POST',
+    data: reqBody,
+    method: "POST",
   });
+}
 
-  return cb
-    ? request
-      .then((res) => {
-        cb(null, res.data);
-      })
-      .catch((err) => {
-        cb(err);
-      })
-    : request;
+function sendSingleMail(_config = {}) {
+  const config = combineUserDefaultValue(_config);
+  config.action = "batch";
+  const fields = COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS.single);
+  const errorMsgs = collectErrorMsgs(fields, config);
+  if (errorMsgs.length) {
+    return Promise.reject(new Error(errorMsgs.join(",\n")));
+  }
+  return sendEmail(config);
+}
+
+function sendBatchMail(_config = {}) {
+  const config = combineUserDefaultValue(_config);
+  config.action = "batch";
+  const fields = COMMON_CONFIG_FIELDS.concat(ACTION_SPECIFIC_FIELDS.batch);
+  // validates and retrieves valid value
+  const errorMsgs = collectErrorMsgs(fields, config);
+  if (errorMsgs.length) {
+    return Promise.reject(new Error(errorMsgs.join(",\n")));
+  }
+  return sendEmail(config);
+}
+
+module.exports = {
+  sendSingleMail,
+  sendBatchMail,
 };

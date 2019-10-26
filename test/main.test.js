@@ -1,70 +1,54 @@
-require('dotenv').config()
-const sendEmail = require('../modifiedCode')
-const { errorTypes } = require('../modifiedCode/config')
+/* eslint no-undef: 0 */
+require("dotenv").config();
+const { sendSingleMail, sendBatchMail } = require("../modifiedCode");
 
-const { accessKeyId, accountName, toAddress, accessKeySecret } = process.env
+const { toAddress, templateName } = process.env;
 
-const config = {
-  accessKeyId,
-  action: 'single',
-  accountName,
-  accessKeySecret,
-  addressType: 1,
+const singleConfig = {
   replyToAddress: true,
   toAddress,
-  fromAlias: 'sociosarbis',
-  subject: 'a warm greeting',
-  htmlBody: '<div>Hello world</div>'
-}
-describe('send email with correct config', () => {
-  describe('send single email', () => {
-    test('with promise style', () => {
-      const errorHandler = jest.fn()
-      return sendEmail(config)
-        .then(data => expect(data).tohasProperty('EnvId'))
-        .reject(errorHandler)
-        .then(() => expect(errorHandler).not.toHaveBeenCalled())
-    })
+  fromAlias: "sociosarbis",
+  subject: "a warm greeting",
+  htmlBody: "<div>Hello world</div>",
+};
 
-    test('with callback style', done => {
-      function callback(err, data) {
-        expect(err).tobeFalsy()
-        expect(data).tohasProperty('EnvId')
-        done()
-      }
-      return sendEmail(config, callback)
-    })
-  })
+const batchConfig = {
+  templateName,
+  receiversName: toAddress,
+};
 
-  /*test('send batch email', () => {
-    const errorHandler = jest.fn()
-    return sendEmail(Object.assign({}, config, { action: 'bactch' }))
-      .then(data => expect(data).tohasProperty('EnvId'))
+describe("send email with correct config", () => {
+  test("send single email", () => {
+    const errorHandler = jest.fn();
+    return sendSingleMail(singleConfig)
+      .then((data) => expect(data).tohasProperty("EnvId"))
       .reject(errorHandler)
-      .then(() => expect(errorHandler).not.toHaveBeenCalled())
-  })*/
-})
+      .then(() => expect(errorHandler).not.toHaveBeenCalled());
+  });
 
-describe('send emial with wrong config', () => {
-  test('config can not pass client valiation', () => {
-    const successHandler = jest.fn()
-    return sendEmail(Object.assign({}, config, { accessKeySecret: undefined }))
-      .then(successHandler)
-      .catch(err =>
-        expect(err).toEqual(
-          expect.objectContaining({
-            message: expect.stringMatching(errorTypes[accessKeySecret])
-          })
-        )
-      )
-      .then(() => expect(successHandler).not.toHaveBeenCalled())
-  })
+  test("send batch email", () => {
+    const errorHandler = jest.fn();
+    return sendBatchMail(batchConfig)
+      .then((data) => expect(data).tohasProperty("EnvId"))
+      .reject(errorHandler)
+      .then(() => expect(errorHandler).not.toHaveBeenCalled());
+  });
+});
 
-  test('config can pass client validation', () => {
-    const successHandler = jest.fn()
-    return sendEmail(Object.assign({}, config, { accessKeySecret: 'wrong accessKeySecret' }))
+describe("send emial with wrong config", () => {
+  test("config can not pass client valiation", () => {
+    const successHandler = jest.fn();
+    return sendSingleEmail({ ...singleConfig, subject: null })
       .then(successHandler)
-      .catch(err => expect(err).tohasProperty('request'))
-      .then(() => expect(successHandler).not.toHaveBeenCalled())
-  })
-})
+      .catch((err) => expect(err).not.tohasProperty("request"))
+      .then(() => expect(successHandler).not.toHaveBeenCalled());
+  });
+
+  test("config can pass client validation", () => {
+    const successHandler = jest.fn();
+    return sendSingleMail({ ...config, accessKeySecret: "wrong accessKeySecret" })
+      .then(successHandler)
+      .catch((err) => expect(err).tohasProperty("request"))
+      .then(() => expect(successHandler).not.toHaveBeenCalled());
+  });
+});
